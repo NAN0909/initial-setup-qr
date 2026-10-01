@@ -121,7 +121,10 @@ APK の URL はログイン不要の HTTPS で、端末の DownloadManager が�
 
 ## 7. 確認済み / 未確認
 
-**確認済み（このコンテナ内）**
+**確認済み（このコンテナ内・2026-10-01）**
+- 公開 URL: サイト https://nan0909.github.io/initial-setup-qr/ ／ APK https://nan0909.github.io/initial-setup-qr/apk/helper-1.0.0.apk（GitHub Pages, リポジトリ NAN0909/initial-setup-qr の docs/）。
+- GitHub に置いた APK を API 経由で取得し、SHA-256 がローカルの dist/helper-1.0.0.apk と一致（6b2969…bc52）。Pages 上の checksums.json もログインなしで取得でき、同じ値。
+- このコンテナから github.io へ直接 curl はネットワーク制限で不可だったため、Pages からの APK 本体のバイト一致は「Pages が同じコミットを配信している」ことによる間接確認。端末で初回 QR 読み取り時に Android 側のチェックサム検証で最終確認される。
 - APK がビルドでき、`apksigner verify` で v3 署名を検証できる（`dist/helper-1.0.0.apk`）。
 - マニフェストに必要なコンポーネント（DeviceAdminReceiver, GET_PROVISIONING_MODE, ADMIN_POLICY_COMPLIANCE / PROVISIONING_SUCCESSFUL）が入っている（`aapt dump`）。
 - QR 生成ページを Chromium で動かし、生成した QR を zbar で読み戻して JSON が一致。
