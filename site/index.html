@@ -1,0 +1,290 @@
+<title>初期設定QR</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* layout: 1 column on phone, 2 cards side by side on desktop; content width capped at 960px */
+:root{
+  --bg:#f5f3ec; --card:#fffdf8; --ink:#1d2a25; --muted:#5c6a65; --line:#dfe3dd;
+  --accent:#1f6b4a; --accent-ink:#ffffff; --accent-soft:#e3f0e8;
+  --warn:#8a5300; --warn-soft:#fff1d6; --ok-soft:#d9f0dd;
+  --display:"Zen Kaku Gothic New","Noto Sans JP",system-ui,sans-serif;
+  --body:"Noto Sans JP",system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#15201b; --card:#1d2a24; --ink:#eef2ee; --muted:#a8b5ae; --line:#334339;
+  --accent:#5fc08f; --accent-ink:#0e1a14; --accent-soft:#24402f;
+  --warn:#f0c37a; --warn-soft:#3b2f14; --ok-soft:#1f3b2a; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#15201b; --card:#1d2a24; --ink:#eef2ee; --muted:#a8b5ae; --line:#334339;
+  --accent:#5fc08f; --accent-ink:#0e1a14; --accent-soft:#24402f;
+  --warn:#f0c37a; --warn-soft:#3b2f14; --ok-soft:#1f3b2a; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.7;margin:0;padding-block:28px 56px;padding-inline:16px}
+.wrap{max-width:960px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:22px}
+h1{font-family:var(--display);font-weight:900;font-size:clamp(34px,7vw,52px);line-height:1.05;margin:0 0 6px;letter-spacing:-.01em}
+.lede{color:var(--muted);margin:0}
+.pill{background:var(--ok-soft);color:var(--ink);border-radius:12px;padding:8px 14px;font-size:12px;line-height:1.4}
+.pill b{display:block;font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 20px;min-width:0}
+.eyebrow{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--muted);text-transform:uppercase;margin:0 0 4px}
+h2{font-family:var(--display);font-weight:700;font-size:20px;margin:0 0 14px}
+label.f{display:block;font-weight:700;font-size:13px;margin:12px 0 6px}
+input[type=text],input[type=password],select{width:100%;font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;margin-top:10px}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--accent)}
+.btn{display:inline-block;width:100%;font:inherit;font-weight:700;font-size:15px;padding:13px 16px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;margin-top:18px}
+.btn.secondary{background:var(--card);color:var(--ink);border-color:var(--line);margin-top:10px}
+.btn:disabled{opacity:.5;cursor:default}
+.qrbox{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:320px;gap:10px}
+.qrbox .ph{width:72px;height:72px;border:2px dashed var(--line);border-radius:14px;display:grid;place-items:center;color:var(--muted);font-size:26px}
+.qrbox img,.qrbox canvas{max-width:100%;width:min(320px,100%);height:auto;background:#fff;padding:12px;border-radius:10px;border:1px solid var(--line)}
+.hint{color:var(--muted);font-size:13px;margin:0}
+.warn{background:var(--warn-soft);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:13px;margin-top:12px}
+.warn b{color:var(--warn)}
+.err{color:#b23a3a;font-size:13px;margin-top:8px}
+table{width:100%;border-collapse:collapse;margin-top:6px;font-size:14px}
+.tbl{overflow-x:auto}
+td{border:1px solid var(--line);padding:10px 12px;vertical-align:top;min-width:140px}
+td small{display:block;color:var(--muted);font-size:11px}
+td b{font-weight:700}
+.note{color:var(--muted);font-size:12px;margin:12px 0 0}
+ol,ul{padding-left:1.3em}
+li{margin:4px 0}
+code,.mono{font-family:var(--mono);font-size:12.5px;background:var(--accent-soft);padding:1px 5px;border-radius:4px;word-break:break-all}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px;margin-top:8px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;word-break:break-all}
+footer{color:var(--muted);font-size:12px;margin-top:28px;border-top:1px solid var(--line);padding-top:14px}
+.stack{display:grid;gap:16px;margin-top:16px}
+.copyrow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.copyrow input{flex:1;min-width:0}
+.copyrow button{font:inherit;font-size:13px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+@media (prefers-reduced-motion:no-preference){.btn{transition:filter .15s}.btn:hover{filter:brightness(1.06)}}
+@media print{body{background:#fff;color:#000}.card,.pill,header,footer,.stack{display:none}.print-only{display:block!important}}
+.print-only{display:none}
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>初期設定QR</h1>
+    <p class="lede">Wi-Fi情報を入力すると、この画面の中だけでセットアップ用QRを作ります。</p>
+  </div>
+  <div class="pill"><b>送信・保存なし</b>SSIDとパスワードはサーバーへ送りません</div>
+</header>
+
+<div class="grid">
+  <section class="card">
+    <p class="eyebrow">Step 1</p>
+    <h2>接続方法</h2>
+    <form id="form" autocomplete="off">
+      <label class="f" for="conn">セットアップ時の通信</label>
+      <select id="conn">
+        <option value="wifi">Wi-Fiを使う</option>
+        <option value="mobile">モバイルデータ（SIM）を使う</option>
+      </select>
+      <div id="wifiFields">
+        <label class="f" for="ssid">Wi-Fi名（SSID）</label>
+        <input id="ssid" type="text" placeholder="例：DecoXE75" spellcheck="false">
+        <label class="f" for="pw">Wi-Fiパスワード</label>
+        <input id="pw" type="password" spellcheck="false">
+        <label class="check"><input id="show" type="checkbox"> 入力内容を表示</label>
+        <details>
+          <summary>接続方式・非公開ネットワーク</summary>
+          <label class="f" for="sec">暗号化方式</label>
+          <select id="sec">
+            <option value="WPA">WPA / WPA2 / WPA3（ふつうはこれ）</option>
+            <option value="WEP">WEP（古い方式）</option>
+            <option value="NONE">パスワードなし（オープン）</option>
+          </select>
+          <label class="check"><input id="hidden" type="checkbox"> SSIDを公開していない（ステルス）ネットワーク</label>
+          <p class="note">企業向け（EAP）認証のWi-Fiには対応していません。モバイルデータを選ぶか、別のWi-Fiを使ってください。</p>
+        </details>
+      </div>
+      <details>
+        <summary>配布APK（通常は変更不要）</summary>
+        <label class="f" for="rel">APKのバージョン</label>
+        <select id="rel"></select>
+        <dl class="kv" id="relInfo"></dl>
+        <p class="note">サイトを更新しても、既に設定済みの端末や保存済みのQRは自動では更新されません。古いQRは、そのQRに書かれたバージョンのAPKをそのまま使います。</p>
+      </details>
+      <button class="btn" id="make" type="submit">QRを作る</button>
+      <p class="err" id="err" hidden></p>
+    </form>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">Step 2</p>
+    <div class="qrbox" id="qrbox">
+      <h2 style="margin:0">QRがここに出ます</h2>
+      <div class="ph" aria-hidden="true">#</div>
+      <p class="hint">接続方法を入力し、<br>「QRを作る」を押してください。</p>
+    </div>
+    <div id="after" hidden>
+      <div class="warn"><b>このQRにはWi-Fiパスワードが含まれます。</b>画像をSNSや共有フォルダに置かないでください。使い終わったら削除してください。</div>
+      <button class="btn secondary" id="clear" type="button">QRと入力内容を消す</button>
+      <p class="note">保存: 画像を長押し（PCは右クリック）→「画像を保存」。印刷: ブラウザーの印刷（Ctrl+P / 共有→プリント）でこのページを印刷すると、QRだけが印刷されます。</p>
+    </div>
+  </section>
+</div>
+
+<section class="card" style="margin-top:16px">
+  <p class="eyebrow">このQRで行うこと</p>
+  <h2>初期設定の内容</h2>
+  <div class="tbl"><table>
+    <tr><td><small>言語・地域</small><b>日本語・日本</b></td><td><small>タイムゾーン</small><b>日本時間</b></td><td><small>画面タイムアウト</small><b>5分</b></td></tr>
+    <tr><td><small>明るさ</small><b>30%・自動調整 OFF</b></td><td><small>位置情報</small><b>OFF</b></td><td><small>メディア音量</small><b>0</b></td></tr>
+    <tr><td><small>着信・通知音</small><b>OFF</b></td><td><small>アラーム音量</small><b>0を試行</b></td><td><small>設定完了後</small><b>個人用へ切り替え</b></td></tr>
+  </table></div>
+  <p class="note">設定は後から変更できます。明るさはAndroidの設定値で30%相当です。機種によってスライダー表示や見え方が異なります。Galaxy側の制限でアラーム音量が0にならない場合があります。緊急速報メールはAndroidの公開APIから確実にOFFにできないため、初期設定中に設定画面を開き、手動でOFFにします。画面の自動回転は変更しません。APN設定、アプリの追加インストール、Googleアカウントの自動ログインは行いません。</p>
+</section>
+
+<div class="stack">
+<section class="card">
+  <p class="eyebrow">使い方</p>
+  <h2>端末での手順（Galaxy A25）</h2>
+  <ol>
+    <li>端末を初期化（工場出荷状態へリセット）し、最初の「ようこそ」画面を表示する。</li>
+    <li>「ようこそ」画面の何もないところを<b>6回すばやくタップ</b>すると、QR読み取りが始まる（カメラの許可を求められたら許可）。</li>
+    <li>このページで作ったQRを読み取る。端末がWi-Fi（またはモバイルデータ）につながり、「初期設定ヘルパー」をダウンロードして管理設定が始まる。</li>
+    <li>「初期設定を適用しました」画面で結果を確認する。<b>要確認</b>の項目は後で設定アプリから直す。「緊急速報メールの設定画面を開く」を押して、手動でOFFにする。</li>
+    <li>「次へ」を押してセットアップを最後まで進める。ホーム画面が出ると「個人用端末へ切り替える」画面が自動で開く（開かない場合は通知、またはアプリ一覧の「初期設定ヘルパー」から開く）。</li>
+    <li>「個人用端末へ切り替える」→「はい、管理を解除する」を押す。「個人用端末になっています」と表示されたら完了。アプリはアンインストールしてよい。</li>
+    <li>Googleアカウントは「設定 › アカウントとバックアップ › アカウントを管理」から手動で追加する。</li>
+  </ol>
+  <p class="note">QR読み取りで「ダウンロードできません」「チェックサムが一致しません」と出る場合は、Wi-Fi情報の誤り、またはAPKのURL・チェックサムの不一致です。このページで作り直してください。</p>
+</section>
+
+<section class="card">
+  <p class="eyebrow">管理の解除</p>
+  <h2>手動で管理を解除する手順</h2>
+  <ol>
+    <li>セットアップが終わってホーム画面が出ていることを確認する（セットアップ途中では解除できないようにしてあります）。</li>
+    <li>アプリ一覧から「初期設定ヘルパー」を開く。</li>
+    <li>「個人用端末へ切り替える」→「はい、管理を解除する（元に戻せません）」を押す。</li>
+    <li>アプリが管理権限の解除を読み戻して確認し、「個人用端末になっています」と表示する。表示されない場合は端末を再起動してもう一度試す。</li>
+    <li>ステータスバーに「この端末は管理されています」の表示が残るときだけ、手動で再起動する（アプリは自動再起動しません）。</li>
+  </ol>
+  <p class="note">解除には Android の <code>DevicePolicyManager.clearDeviceOwnerApp</code> を使います。この API は「テスト用途向け」と注記された非推奨 API ですが、Android 16（API 36）でも引き続き提供されており、アプリ自身が Device Owner を外せる唯一の公開手段です。一部のポリシーは残ることがあると Android の文書に書かれていますが、このアプリは端末に制限ポリシーを追加しないため、残るものはありません。どうしても解除できない場合は、端末の初期化で管理は外れます。</p>
+</section>
+
+<section class="card">
+  <p class="eyebrow">仕組み</p>
+  <h2>安全面について</h2>
+  <ul>
+    <li>Wi-Fi情報はこのページの中（お使いのブラウザー）だけで処理し、サーバーへ送信・保存しません。URL・ログ・解析ツール・ブラウザーの保存領域にも残しません。</li>
+    <li>「初期設定ヘルパー」はネットワーク権限を持たず、通信・情報収集・遠隔操作の機能はありません。Wi-Fiパスワードはアプリに保存しません（QRの内容はAndroidのセットアップが直接Wi-Fi設定に使います）。</li>
+    <li>設定は初回に一度だけ適用し、アプリを開き直しても、再起動しても、更新しても再適用しません。</li>
+    <li>OS更新の制御、自動再起動、アプリの自動追加は行いません。</li>
+  </ul>
+</section>
+</div>
+
+<footer>
+  QRの中身（JSON）: 管理コンポーネント <code>jp.initialsetup.helper/.AdminReceiver</code> ／ APK URL とチェックサム（SHA-256, URL-safe Base64）／ Wi-Fi情報 ／ <code>PROVISIONING_LOCALE=ja_JP</code>, <code>PROVISIONING_TIME_ZONE=Asia/Tokyo</code>, <code>LEAVE_ALL_SYSTEM_APPS_ENABLED=true</code>。<br>
+  最終更新: 2026-10-01
+</footer>
+</div>
+
+<div class="print-only" id="printArea"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+  'use strict';
+  var COMPONENT = "jp.initialsetup.helper/.AdminReceiver";
+  var RELEASES = [
+  {
+    "version": "1.0.0",
+    "url": "https://nan0909.github.io/initial-setup-qr/apk/helper-1.0.0.apk",
+    "date": "2026-10-01",
+    "size": 33667,
+    "sha256": "6b2969914d339b78544d5aa08cb33813ab9911848583720d10af2ef373e3bc52",
+    "package_checksum": "aylpkU0zm3hUTVqgjLM4E6uZEYSFg3INEK8u83PjvFI",
+    "signature_checksum": "E6OxEd2PlDWsfMeZes_Kdq6SdPEknkrYkruzCmXUFeI"
+  }
+];   // 新しい順。更新時は tools/make_site.py が書き換える
+
+  var $ = function(id){ return document.getElementById(id); };
+  var conn=$('conn'), wifiFields=$('wifiFields'), ssid=$('ssid'), pw=$('pw'), show=$('show'),
+      sec=$('sec'), hidden=$('hidden'), rel=$('rel'), relInfo=$('relInfo'), form=$('form'),
+      err=$('err'), qrbox=$('qrbox'), after=$('after'), clearBtn=$('clear'), printArea=$('printArea');
+
+  // 配布APKの選択肢
+  RELEASES.forEach(function(r,i){
+    var o=document.createElement('option'); o.value=i; o.textContent='v'+r.version+(i===0?'（最新）':'');
+    rel.appendChild(o);
+  });
+  function showRel(){
+    var r=RELEASES[rel.value|0];
+    relInfo.innerHTML='';
+    [['URL',r.url],['SHA-256',r.sha256],['サイズ',r.size+' bytes'],['公開日',r.date]].forEach(function(kv){
+      var dt=document.createElement('dt'), dd=document.createElement('dd');
+      dt.textContent=kv[0]; dd.textContent=kv[1]; relInfo.appendChild(dt); relInfo.appendChild(dd);
+    });
+  }
+  rel.addEventListener('change',showRel); showRel();
+
+  conn.addEventListener('change',function(){ wifiFields.hidden = conn.value!=='wifi'; });
+  show.addEventListener('change',function(){ pw.type = show.checked?'text':'password'; });
+  sec.addEventListener('change',function(){ pw.disabled = sec.value==='NONE'; if(pw.disabled) pw.value=''; });
+
+  function fail(msg){ err.textContent=msg; err.hidden=false; }
+
+  form.addEventListener('submit',function(e){
+    e.preventDefault(); err.hidden=true;
+    var r=RELEASES[rel.value|0];
+    if(!r || !/^https:\/\//.test(r.url) || r.url.indexOf('REPLACE')>=0){ fail('APKの公開URLがまだ設定されていません。'); return; }
+    var payload={};
+    payload["android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME"]=COMPONENT;
+    payload["android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION"]=r.url;
+    payload["android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM"]=r.package_checksum;
+    payload["android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM"]=r.signature_checksum;
+    if(conn.value==='wifi'){
+      var s=ssid.value.trim();
+      if(!s){ fail('Wi-Fi名（SSID）を入力してください。'); ssid.focus(); return; }
+      if(sec.value!=='NONE' && !pw.value){ fail('Wi-Fiパスワードを入力してください。パスワードなしの場合は「接続方式」で「パスワードなし」を選んでください。'); pw.focus(); return; }
+      if(sec.value==='WPA' && (pw.value.length<8 || pw.value.length>63) && !/^[0-9a-fA-F]{64}$/.test(pw.value)){ fail('WPAのパスワードは8〜63文字です。'); pw.focus(); return; }
+      payload["android.app.extra.PROVISIONING_WIFI_SSID"]=s;
+      payload["android.app.extra.PROVISIONING_WIFI_SECURITY_TYPE"]=sec.value;
+      if(sec.value!=='NONE') payload["android.app.extra.PROVISIONING_WIFI_PASSWORD"]=pw.value;
+      if(hidden.checked) payload["android.app.extra.PROVISIONING_WIFI_HIDDEN"]=true;
+    } else {
+      payload["android.app.extra.PROVISIONING_USE_MOBILE_DATA"]=true;
+    }
+    payload["android.app.extra.PROVISIONING_LOCALE"]="ja_JP";
+    payload["android.app.extra.PROVISIONING_TIME_ZONE"]="Asia/Tokyo";
+    payload["android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED"]=true;
+    payload["android.app.extra.PROVISIONING_SKIP_EDUCATION_SCREENS"]=true;
+
+    var text=JSON.stringify(payload);
+    qrbox.innerHTML=''; printArea.innerHTML='';
+    try{
+      new QRCode(qrbox,{text:text,width:640,height:640,correctLevel:QRCode.CorrectLevel.M});
+    }catch(ex){ fail('QRを作れませんでした: '+ex.message); return; }
+    var cap=document.createElement('p'); cap.className='hint';
+    cap.textContent='初期設定ヘルパー v'+r.version+(conn.value==='wifi'?'・Wi-Fi: '+ssid.value.trim():'・モバイルデータ');
+    qrbox.appendChild(cap);
+    after.hidden=false;
+    // 印刷用（QRのみ）
+    setTimeout(function(){
+      var img=qrbox.querySelector('img'), cv=qrbox.querySelector('canvas');
+      var src=img&&img.src?img.src:(cv?cv.toDataURL('image/png'):'');
+      if(src){ var p=document.createElement('img'); p.src=src; p.style.width='120mm'; p.alt='初期設定QR'; printArea.appendChild(p);
+        var t=document.createElement('p'); t.textContent=cap.textContent+'（Wi-Fiパスワードを含むため取扱注意）'; printArea.appendChild(t); }
+    },50);
+  });
+
+  clearBtn.addEventListener('click',function(){
+    ssid.value=''; pw.value=''; hidden.checked=false; show.checked=false; pw.type='password';
+    qrbox.innerHTML='<h2 style="margin:0">QRがここに出ます</h2><div class="ph" aria-hidden="true">#</div><p class="hint">接続方法を入力し、<br>「QRを作る」を押してください。</p>';
+    printArea.innerHTML=''; after.hidden=true;
+  });
+  // ページを離れるときに入力を残さない
+  window.addEventListener('pagehide',function(){ ssid.value=''; pw.value=''; });
+})();
+</script>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">初期設定ヘルパー</string>
+    <string name="admin_label">初期設定ヘルパー</string>
+    <string name="admin_description">初期設定（画面・音量・位置情報など）を一度だけ適用するための管理コンポーネントです。設定後に解除できます。</string>
+    <string name="notif_channel">初期設定ヘルパー</string>
+    <string name="notif_title">個人用端末へ切り替える準備ができました</string>
+    <string name="notif_text">タップして「初期設定ヘルパー」を開き、管理を解除してください。</string>
+</resources>

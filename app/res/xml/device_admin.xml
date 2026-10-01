@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Device Owner としての動作に uses-policies は不要。空のまま宣言する。 -->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies />
+</device-admin>
