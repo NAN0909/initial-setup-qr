@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="jp.initialsetup.helper"
-    android:versionCode="1"
-    android:versionName="1.0.0">
+    android:versionCode="2"
+    android:versionName="1.1.0">
 
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="34" />
 
-    <!-- 通知（Android 13+ は実行時権限。Device Owner が自分自身へ付与する） -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- 一般ユーザー向けに設定アプリの画面を開くだけ。ネットワーク権限は要求しない -->
+    <!-- 音量操作用。ネットワーク権限は要求しない -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <application
         android:label="@string/app_name"
@@ -42,7 +42,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Android 12 以降: ポリシー適用画面 / Android 10〜11: PROVISIONING_SUCCESSFUL -->
+        <!-- Android 12 以降: 設定を一度適用して RESULT_OK で OS へ戻る -->
         <activity
             android:name=".PolicyComplianceActivity"
             android:exported="true"
@@ -52,6 +52,14 @@
                 <action android:name="android.app.action.ADMIN_POLICY_COMPLIANCE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+        </activity>
+
+        <!-- Android 10〜11: PROVISIONING_SUCCESSFUL -->
+        <activity
+            android:name=".ProvisionedActivity"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.app.action.PROVISIONING_SUCCESSFUL" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -69,9 +77,10 @@
             </intent-filter>
         </activity>
 
-        <!-- セットアップ完了を待ってから切り替え画面を自動表示する -->
+        <!-- OS セットアップ完了の確認 Job（非永続・最長 30 分） -->
         <service
-            android:name=".SetupWatchService"
-            android:exported="false" />
+            android:name=".CompletionJob"
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
 </manifest>

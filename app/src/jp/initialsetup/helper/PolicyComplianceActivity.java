@@ -1,64 +1,45 @@
 package jp.initialsetup.helper;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
-import java.util.List;
-
 /**
- * プロビジョニングの最後にシステムから起動される画面。
- *  - Android 12+ : ADMIN_POLICY_COMPLIANCE（この画面が RESULT_OK で閉じるとセットアップが続く）
- *  - Android 10/11: PROVISIONING_SUCCESSFUL
- * ここで初期設定を一度だけ適用し、結果を表示する。
- * Device Owner の解除は「セットアップ完了後」に MainActivity で行う（ここでは解除しない）。
+ * Android 12 以降: ADMIN_POLICY_COMPLIANCE。設定を一度適用し、完了を記録して RESULT_OK で OS セットアップへ戻る。
+ * 通常経路では画面を出さない（独自の続行ボタンや他の設定画面を挟まない）。
+ * 適用結果（report）が保存できなかった場合だけ、状態を示して「続ける」を押せる画面を出す。
  */
 public class PolicyComplianceActivity extends Activity {
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        final List<SetupApplier.Item> items = new SetupApplier(this).applyOnce();
-
+    protected void onResume() {
+        super.onResume();
+        SetupApplier.captureProvisioningOptions(this, getIntent());
+        SetupApplier.applyOnce(this);
+        if (SetupApplier.isOwner(this) && SetupApplier.prefs(this).contains("report")) {
+            SetupApplier.markPolicyComplianceFinished(this);
+            setResult(RESULT_OK);
+            finish();
+            SetupApplier.launchPersonalSwitchIfReady(this);   // 条件未達なら何もしない（Job が後で確認）
+            return;
+        }
         LinearLayout content = new LinearLayout(this);
         content.addView(Ui.eyebrow(this, "初期設定ヘルパー"));
-        content.addView(Ui.title(this, "初期設定を適用しました"));
-        int warn = 0;
-        for (SetupApplier.Item it : items) if (it.status != SetupApplier.OK) warn++;
-        content.addView(Ui.body(this, warn == 0
-                ? "すべての項目を適用できました。設定はあとから自由に変更できます。"
-                : warn + " 件は自動で完了できませんでした。あとで設定アプリから確認してください。設定はあとから自由に変更できます。"));
-        Ui.addItems(this, content, items);
-
-        Button emergency = Ui.button(this, "緊急速報メールの設定画面を開く", false);
-        emergency.setOnClickListener(new View.OnClickListener() {
+        content.addView(Ui.title(this, "初期設定を適用できませんでした"));
+        content.addView(Ui.body(this, SetupApplier.isOwner(this)
+            ? "設定結果を保存できませんでした。初期設定の完了後に端末の設定から確認してください。"
+            : "このアプリは端末の管理者として登録されていません。初期化後の QR 登録で導入してください。"));
+        Button cont = Ui.button(this, "現在の状態で初期設定を続ける", true);
+        cont.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                SetupApplier.openEmergencyAlertSettings(PolicyComplianceActivity.this);
-            }
-        });
-        content.addView(emergency);
-
-        content.addView(Ui.body(this, "\n次へ進むとセットアップが続きます。セットアップが終わると「個人用端末へ切り替える」画面が開きます（開かない場合はアプリ一覧の「初期設定ヘルパー」から開けます）。"));
-
-        Button next = Ui.button(this, "次へ", true);
-        next.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                // セットアップ完了を待って切り替え画面を出すサービスを開始
-                startService(new Intent(PolicyComplianceActivity.this, SetupWatchService.class));
+                SetupApplier.markPolicyComplianceFinished(PolicyComplianceActivity.this);
                 setResult(RESULT_OK);
                 finish();
             }
         });
-        content.addView(next);
-
+        content.addView(cont);
         setContentView(Ui.page(this, content));
-    }
-
-    @Override
-    public void onBackPressed() {
-        // 戻るで閉じるとプロビジョニングが失敗扱いになるため無効化
     }
 }

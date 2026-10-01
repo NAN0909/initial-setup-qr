@@ -124,9 +124,6 @@ final class Ui {
         if (it.status == SetupApplier.OK) {
             badge.setText("適用済み");
             badge.setTextColor(ACCENT);
-        } else if (it.status == SetupApplier.MANUAL) {
-            badge.setText("手動で設定");
-            badge.setTextColor(WARN);
         } else {
             badge.setText("要確認");
             badge.setTextColor(WARN);

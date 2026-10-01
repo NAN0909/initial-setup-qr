@@ -138,9 +138,9 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;border-top:1px solid va
   <div class="tbl"><table>
     <tr><td><small>言語・地域</small><b>日本語・日本</b></td><td><small>タイムゾーン</small><b>日本時間</b></td><td><small>画面タイムアウト</small><b>5分</b></td></tr>
     <tr><td><small>明るさ</small><b>30%・自動調整 OFF</b></td><td><small>位置情報</small><b>OFF</b></td><td><small>メディア音量</small><b>0</b></td></tr>
-    <tr><td><small>着信・通知音</small><b>OFF</b></td><td><small>アラーム音量</small><b>0を試行</b></td><td><small>設定完了後</small><b>個人用へ切り替え</b></td></tr>
+    <tr><td><small>着信・通知音</small><b>0</b></td><td><small>アラーム音量</small><b>0を試行</b></td><td><small>設定完了後</small><b>個人用へ切り替え</b></td></tr>
   </table></div>
-  <p class="note">設定は後から変更できます。明るさはAndroidの設定値で30%相当です。機種によってスライダー表示や見え方が異なります。Galaxy側の制限でアラーム音量が0にならない場合があります。緊急速報メールはAndroidの公開APIから確実にOFFにできないため、初期設定中に設定画面を開き、手動でOFFにします。画面の自動回転は変更しません。APN設定、アプリの追加インストール、Googleアカウントの自動ログインは行いません。</p>
+  <p class="note">設定は後から変更できます。明るさはAndroidの設定値で30%相当です。機種によってスライダー表示や見え方が異なります。Galaxy側の制限でアラーム音量が0にならない場合があります。緊急速報メールの受信設定、画面の自動回転は変更しません。APN設定、アプリの追加インストール、Googleアカウントの自動ログインは行いません。</p>
 </section>
 
 <div class="stack">
@@ -151,9 +151,9 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;border-top:1px solid va
     <li>端末を初期化（工場出荷状態へリセット）し、最初の「ようこそ」画面を表示する。</li>
     <li>「ようこそ」画面の何もないところを<b>6回すばやくタップ</b>すると、QR読み取りが始まる（カメラの許可を求められたら許可）。</li>
     <li>このページで作ったQRを読み取る。端末がWi-Fi（またはモバイルデータ）につながり、「初期設定ヘルパー」をダウンロードして管理設定が始まる。</li>
-    <li>「初期設定を適用しました」画面で結果を確認する。<b>要確認</b>の項目は後で設定アプリから直す。「緊急速報メールの設定画面を開く」を押して、手動でOFFにする。</li>
-    <li>「次へ」を押してセットアップを最後まで進める。ホーム画面が出ると「個人用端末へ切り替える」画面が自動で開く（開かない場合は通知、またはアプリ一覧の「初期設定ヘルパー」から開く）。</li>
-    <li>「個人用端末へ切り替える」→「はい、管理を解除する」を押す。「個人用端末になっています」と表示されたら完了。アプリはアンインストールしてよい。</li>
+    <li>初期設定は自動で一度だけ適用され、画面には何も出ずにAndroidのセットアップが続く。残りのセットアップ画面（Androidや機種側の必須画面）を進める。</li>
+    <li>ホーム画面が出てしばらくすると「初期設定が完了しました」画面が自動で開く（開かない場合はアプリ一覧の「初期設定ヘルパー」を開く）。<b>要確認</b>の項目があれば後で設定アプリから直す。</li>
+    <li>「個人用端末へ切り替える」を1回押す。「個人用端末への切り替えが完了しました」と表示されたら完了。アプリはアンインストールしてよい。</li>
     <li>Googleアカウントは「設定 › アカウントとバックアップ › アカウントを管理」から手動で追加する。</li>
   </ol>
   <p class="note">QR読み取りで「ダウンロードできません」「チェックサムが一致しません」と出る場合は、Wi-Fi情報の誤り、またはAPKのURL・チェックサムの不一致です。このページで作り直してください。</p>
@@ -163,10 +163,10 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;border-top:1px solid va
   <p class="eyebrow">管理の解除</p>
   <h2>手動で管理を解除する手順</h2>
   <ol>
-    <li>セットアップが終わってホーム画面が出ていることを確認する（セットアップ途中では解除できないようにしてあります）。</li>
+    <li>セットアップが終わってホーム画面が出ていることを確認する。</li>
     <li>アプリ一覧から「初期設定ヘルパー」を開く。</li>
-    <li>「個人用端末へ切り替える」→「はい、管理を解除する（元に戻せません）」を押す。</li>
-    <li>アプリが管理権限の解除を読み戻して確認し、「個人用端末になっています」と表示する。表示されない場合は端末を再起動してもう一度試す。</li>
+    <li>「個人用端末へ切り替える」を押す（セットアップ途中や古いQRの場合は、代わりに「このアプリによる端末管理を解除」→確認ボタンの経路がある）。</li>
+    <li>アプリが管理権限の解除を読み戻して確認し、「個人用端末への切り替えが完了しました」と表示する。表示されない場合は端末を再起動してもう一度試す。</li>
     <li>ステータスバーに「この端末は管理されています」の表示が残るときだけ、手動で再起動する（アプリは自動再起動しません）。</li>
   </ol>
   <p class="note">解除には Android の <code>DevicePolicyManager.clearDeviceOwnerApp</code> を使います。この API は「テスト用途向け」と注記された非推奨 API ですが、Android 16（API 36）でも引き続き提供されており、アプリ自身が Device Owner を外せる唯一の公開手段です。一部のポリシーは残ることがあると Android の文書に書かれていますが、このアプリは端末に制限ポリシーを追加しないため、残るものはありません。どうしても解除できない場合は、端末の初期化で管理は外れます。</p>
@@ -178,14 +178,15 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;border-top:1px solid va
   <ul>
     <li>Wi-Fi情報はこのページの中（お使いのブラウザー）だけで処理し、サーバーへ送信・保存しません。URL・ログ・解析ツール・ブラウザーの保存領域にも残しません。</li>
     <li>「初期設定ヘルパー」はネットワーク権限を持たず、通信・情報収集・遠隔操作の機能はありません。Wi-Fiパスワードはアプリに保存しません（QRの内容はAndroidのセットアップが直接Wi-Fi設定に使います）。</li>
-    <li>設定は初回に一度だけ適用し、アプリを開き直しても、再起動しても、更新しても再適用しません。</li>
+    <li>設定は初回に一度だけ適用し、アプリを開き直しても、再起動しても、更新しても自動では再適用しません。</li>
+    <li>セットアップ完了の確認は、端末内の一時的なジョブ（最長30分）で行います。完了前に切り替え画面を自動表示することはありません。</li>
     <li>OS更新の制御、自動再起動、アプリの自動追加は行いません。</li>
   </ul>
 </section>
 </div>
 
 <footer>
-  QRの中身（JSON）: 管理コンポーネント <code>__COMPONENT__</code> ／ APK URL とチェックサム（SHA-256, URL-safe Base64）／ Wi-Fi情報 ／ <code>PROVISIONING_LOCALE=ja_JP</code>, <code>PROVISIONING_TIME_ZONE=Asia/Tokyo</code>, <code>LEAVE_ALL_SYSTEM_APPS_ENABLED=true</code>。<br>
+  QRの中身（JSON）: 管理コンポーネント <code>__COMPONENT__</code> ／ APK URL とチェックサム（SHA-256, URL-safe Base64）／ Wi-Fi情報 ／ <code>PROVISIONING_LOCALE=ja_JP</code>, <code>PROVISIONING_TIME_ZONE=Asia/Tokyo</code>, <code>LEAVE_ALL_SYSTEM_APPS_ENABLED=true</code>, <code>ADMIN_EXTRAS_BUNDLE.show_personal_switch_after_setup=true</code>。<br>
   最終更新: __UPDATED__
 </footer>
 </div>
@@ -250,6 +251,7 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;border-top:1px solid va
     payload["android.app.extra.PROVISIONING_TIME_ZONE"]="Asia/Tokyo";
     payload["android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED"]=true;
     payload["android.app.extra.PROVISIONING_SKIP_EDUCATION_SCREENS"]=true;
+    payload["android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE"]={"show_personal_switch_after_setup":true};
 
     var text=JSON.stringify(payload);
     qrbox.innerHTML=''; printArea.innerHTML='';

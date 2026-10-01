@@ -1,15 +1,15 @@
 package jp.initialsetup.helper;
 
 import android.app.admin.DevicePolicyManager;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.location.LocationManager;
 import android.media.AudioManager;
-import android.os.Build;
+import android.os.PersistableBundle;
 import android.provider.Settings;
 
 import java.util.ArrayList;
@@ -18,290 +18,233 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 /**
- * 初期設定を「一度だけ」適用する。
- * 各項目は失敗しても止めず、結果を Item として記録する（要確認＝NEEDS_CHECK）。
- * 適用済みフラグは SharedPreferences に保存し、再起動・再表示・更新では再実行しない。
+ * 初期設定を「一度だけ」適用し、OS セットアップ完了後に「個人用端末へ切り替える」画面を出すための状態管理。
+ * 参考 v1.9（Setup.java）の遷移・完了判定に合わせている。緊急速報メールの画面は開かない。
  */
 public final class SetupApplier {
 
     public static final int OK = 0;
     public static final int NEEDS_CHECK = 1;   // 自動でできなかった／読み戻しが一致しない
-    public static final int MANUAL = 2;        // 最初から手動前提
 
-    public static final String PREFS = "setup";
-    public static final String KEY_APPLIED = "applied_v1";
-    public static final String KEY_RESULT = "result_v1";
-    public static final String KEY_PROVISIONED = "provisioned";
+    static final String PREFS = "setup";
+    static final String EXTRA_SHOW_PERSONAL_SWITCH = "show_personal_switch_after_setup";
+    static final int JOB_ID = 1801;
+    static final long COMPLETION_WINDOW_MS = 30L * 60 * 1000;
 
-    public static final int BRIGHTNESS_30PCT = 77;      // 255 * 0.30 = 76.5 → 77
-    public static final int SCREEN_OFF_MS = 5 * 60 * 1000;
+    public static final int BRIGHTNESS_30PCT = Math.round(255 * 0.30f);   // 77
+    public static final int SCREEN_OFF_MS = 300000;
     public static final String TIME_ZONE = "Asia/Tokyo";
 
     public static final class Item {
         public final String name;
         public final int status;
         public final String detail;
-        Item(String name, int status, String detail) {
-            this.name = name; this.status = status; this.detail = detail;
-        }
+        Item(String name, int status, String detail) { this.name = name; this.status = status; this.detail = detail; }
     }
 
-    private final Context ctx;
-    private final DevicePolicyManager dpm;
-    private final ComponentName admin;
-    private final List<Item> items = new ArrayList<Item>();
+    private SetupApplier() {}
 
-    public SetupApplier(Context context) {
-        ctx = context.getApplicationContext();
-        dpm = (DevicePolicyManager) ctx.getSystemService(Context.DEVICE_POLICY_SERVICE);
-        admin = AdminReceiver.component(ctx);
-    }
+    static SharedPreferences prefs(Context c) { return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
+    static DevicePolicyManager dpm(Context c) { return (DevicePolicyManager) c.getSystemService(Context.DEVICE_POLICY_SERVICE); }
+    static ComponentName admin(Context c) { return new ComponentName(c.getApplicationContext(), AdminReceiver.class); }
+    public static boolean isOwner(Context c) { DevicePolicyManager d = dpm(c); return d != null && d.isDeviceOwnerApp(c.getPackageName()); }
 
-    public static boolean isApplied(Context c) {
-        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_APPLIED, false);
-    }
+    // ---- プロビジョニング情報 -------------------------------------------------
 
-    public static String savedResult(Context c) {
-        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_RESULT, null);
-    }
-
-    public static boolean isDeviceOwner(Context c) {
-        DevicePolicyManager d = (DevicePolicyManager) c.getSystemService(Context.DEVICE_POLICY_SERVICE);
-        return d != null && d.isDeviceOwnerApp(c.getPackageName());
-    }
-
-    /** Settings.Secure "user_setup_complete" は非公開定数だが読み取りは可能。 */
-    public static boolean isUserSetupComplete(Context c) {
+    /** QR の ADMIN_EXTRAS_BUNDLE から show_personal_switch_after_setup を保存する。無ければ何もしない。 */
+    static void captureProvisioningOptions(Context c, Intent intent) {
+        if (intent == null) return;
         try {
-            return Settings.Secure.getInt(c.getContentResolver(), "user_setup_complete", 0) == 1;
+            PersistableBundle extras = intent.getParcelableExtra(DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE);
+            if (extras != null && extras.containsKey(EXTRA_SHOW_PERSONAL_SWITCH)) {
+                prefs(c).edit().putBoolean("showPersonalSwitch", extras.getBoolean(EXTRA_SHOW_PERSONAL_SWITCH, false)).apply();
+            }
+        } catch (RuntimeException ignored) { }
+    }
+
+    static void markProvisioningComplete(Context c) {
+        prefs(c).edit().putBoolean("provisioningComplete", true).commit();
+        scheduleCompletionCheck(c);
+    }
+
+    static void markPolicyComplianceFinished(Context c) {
+        prefs(c).edit().putBoolean("policyComplianceFinished", true).commit();
+        scheduleCompletionCheck(c);
+    }
+
+    /** OS のセットアップ完了: user_setup_complete（非公開定数）と DEVICE_PROVISIONED の両方が 1。 */
+    static boolean systemSetupComplete(Context c) {
+        try {
+            return Settings.Secure.getInt(c.getContentResolver(), "user_setup_complete", 0) == 1
+                && Settings.Global.getInt(c.getContentResolver(), Settings.Global.DEVICE_PROVISIONED, 0) == 1;
         } catch (RuntimeException e) {
             return false;
         }
     }
 
-    /** 未適用なら適用して結果を保存。適用済みなら保存済み結果を返す（再実行しない）。 */
-    public List<Item> applyOnce() {
-        SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        if (p.getBoolean(KEY_APPLIED, false)) {
-            return decode(p.getString(KEY_RESULT, ""));
+    static boolean shouldShowPersonalSwitch(Context c) {
+        SharedPreferences p = prefs(c);
+        return p.getBoolean("showPersonalSwitch", false)
+            && p.contains("report")
+            && systemSetupComplete(c)
+            && (p.getBoolean("provisioningComplete", false) || p.getBoolean("policyComplianceFinished", false));
+    }
+
+    /** 非永続・最長 30 分の Job で完了を確認する。再起動後には残らない。 */
+    static void scheduleCompletionCheck(Context c) {
+        SharedPreferences p = prefs(c);
+        if (!isOwner(c) || !p.getBoolean("showPersonalSwitch", false) || p.getBoolean("switchPageShown", false)) return;
+        long now = System.currentTimeMillis();
+        if (!p.contains("completionCheckUntil")) {
+            p.edit().putLong("completionCheckUntil", now + COMPLETION_WINDOW_MS).commit();
         }
-        if (!dpm.isDeviceOwnerApp(ctx.getPackageName())) {
-            items.add(new Item("管理権限", NEEDS_CHECK, "このアプリは Device Owner ではないため、設定を適用できません。"));
-            return items;
-        }
-        // 先に通知権限を自分へ付与（Android 13+）。失敗しても続行。
+        if (now >= p.getLong("completionCheckUntil", 0)) return;
+        JobScheduler js = (JobScheduler) c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        if (js == null) return;
+        js.schedule(new JobInfo.Builder(JOB_ID, new ComponentName(c, CompletionJob.class))
+            .setMinimumLatency(5000).setOverrideDeadline(15000).build());
+    }
+
+    static void cancelCompletionCheck(Context c) {
+        JobScheduler js = (JobScheduler) c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        if (js != null) js.cancel(JOB_ID);
+    }
+
+    /** 条件がそろっていれば切り替え画面を開く（Device Owner はバックグラウンドからの起動が許可される）。 */
+    static void launchPersonalSwitchIfReady(Context c) {
+        if (!shouldShowPersonalSwitch(c) || !isOwner(c) || prefs(c).getBoolean("switchPageShown", false)) return;
+        Intent page = new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         try {
-            if (Build.VERSION.SDK_INT >= 33) {
-                dpm.setPermissionGrantState(admin, ctx.getPackageName(),
-                        "android.permission.POST_NOTIFICATIONS",
-                        DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED);
+            c.startActivity(page);
+        } catch (RuntimeException e) {
+            prefs(c).edit().putString("completionLaunchError", e.getClass().getSimpleName()).apply();
+        }
+    }
+
+    // ---- 設定の適用 ---------------------------------------------------------
+
+    /** 未適用（attempted=false）で Device Owner のときだけ適用する。再表示・再起動・更新では再実行しない。 */
+    public static synchronized void applyOnce(Context c) {
+        if (isOwner(c) && !prefs(c).getBoolean("attempted", false)) apply(c);
+    }
+
+    /** 利用者が明示的に押したときだけ再適用に使う。 */
+    public static synchronized void apply(Context c) {
+        if (!isOwner(c)) return;
+        // 先に attempted を立てる: 途中で落ちても、次回に利用者の変更を上書きしない。
+        if (!prefs(c).edit().putBoolean("attempted", true).putBoolean("complete", false).commit()) return;
+        Context ctx = c.getApplicationContext();
+        DevicePolicyManager dpm = dpm(ctx);
+        ComponentName admin = admin(ctx);
+        AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+        List<Item> items = new ArrayList<Item>();
+
+        // 言語: QR の PROVISIONING_LOCALE で設定される。DPC から変える公開 API は無いので読み戻しのみ。
+        String tag = Locale.getDefault().toLanguageTag();
+        items.add("ja".equals(Locale.getDefault().getLanguage())
+            ? new Item("言語", OK, "日本語（" + tag + "）")
+            : new Item("言語", NEEDS_CHECK, "現在 " + tag + "。設定 > 一般管理 > 言語 から変更してください。"));
+
+        // タイムゾーン: QR で指定。念のため setTimeZone で合わせ、読み戻す。
+        String tzErr = null;
+        try {
+            if (!TIME_ZONE.equals(TimeZone.getDefault().getID())) {
+                if (!dpm.setTimeZone(admin, TIME_ZONE)) {
+                    dpm.setGlobalSetting(admin, Settings.Global.AUTO_TIME_ZONE, "0");
+                    dpm.setTimeZone(admin, TIME_ZONE);
+                }
+                TimeZone.setDefault(null);
             }
-        } catch (RuntimeException ignored) { }
+        } catch (RuntimeException e) { tzErr = e.getClass().getSimpleName(); }
+        String tz = TimeZone.getDefault().getID();
+        items.add(TIME_ZONE.equals(tz)
+            ? new Item("タイムゾーン", OK, "日本時間（Asia/Tokyo）")
+            : new Item("タイムゾーン", NEEDS_CHECK, "読み戻し: " + tz + (tzErr != null ? "（" + tzErr + "）" : "")));
 
-        applyLanguage();
-        applyTimeZone();
-        applyScreenTimeout();
-        applyBrightness();
-        applyLocation();
-        applyVolumes();
-        items.add(new Item("緊急速報メール", MANUAL,
-                "公開APIでは確実にOFFにできないため、設定画面を開いて手動でOFFにしてください。"));
-
-        p.edit().putBoolean(KEY_APPLIED, true).putString(KEY_RESULT, encode(items)).apply();
-        return items;
-    }
-
-    // ---- 各項目 -------------------------------------------------------
-
-    private void applyLanguage() {
-        // システム言語を変える公開APIは Device Owner にも無い。QR の PROVISIONING_LOCALE で
-        // セットアップウィザードが設定した結果を読み戻して確認するだけ。
-        Locale l = Locale.getDefault();
-        String tag = l.toLanguageTag();
-        if ("ja".equals(l.getLanguage())) {
-            items.add(new Item("言語", OK, "日本語（" + tag + "）。QRの指定で設定済み。"));
-        } else {
-            items.add(new Item("言語", NEEDS_CHECK, "現在 " + tag + "。設定 > 一般管理 > 言語 から日本語を選んでください。"));
-        }
-    }
-
-    private void applyTimeZone() {
-        String before = TimeZone.getDefault().getID();
-        boolean ok;
-        try {
-            ok = dpm.setTimeZone(admin, TIME_ZONE);
-            if (!ok) {
-                // 自動タイムゾーンが有効だと false を返す。無効化してから再設定。
-                dpm.setGlobalSetting(admin, Settings.Global.AUTO_TIME_ZONE, "0");
-                ok = dpm.setTimeZone(admin, TIME_ZONE);
-            }
-        } catch (RuntimeException e) {
-            ok = false;
-        }
-        TimeZone.setDefault(null);
-        String after = TimeZone.getDefault().getID();
-        if (TIME_ZONE.equals(after)) {
-            items.add(new Item("タイムゾーン", OK, "日本時間（Asia/Tokyo）。" + (before.equals(after) ? "元から一致。" : "")));
-        } else {
-            items.add(new Item("タイムゾーン", NEEDS_CHECK, "読み戻し: " + after + "（setTimeZone=" + ok + "）。設定 > 一般管理 > 日付と時刻 を確認してください。"));
-        }
-    }
-
-    private void applyScreenTimeout() {
+        // 画面タイムアウト 5 分
         String err = null;
-        try {
-            dpm.setSystemSetting(admin, Settings.System.SCREEN_OFF_TIMEOUT, String.valueOf(SCREEN_OFF_MS));
-        } catch (RuntimeException e) {
-            err = e.getClass().getSimpleName();
-        }
-        int v = Settings.System.getInt(ctx.getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
-        if (v == SCREEN_OFF_MS) {
-            items.add(new Item("画面タイムアウト", OK, "5分（300000 ms）"));
-        } else {
-            items.add(new Item("画面タイムアウト", NEEDS_CHECK, "読み戻し: " + v + " ms" + (err != null ? "（" + err + "）" : "")));
-        }
-    }
+        try { dpm.setSystemSetting(admin, Settings.System.SCREEN_OFF_TIMEOUT, String.valueOf(SCREEN_OFF_MS)); }
+        catch (RuntimeException e) { err = e.getClass().getSimpleName(); }
+        int timeout = Settings.System.getInt(ctx.getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+        items.add(timeout == SCREEN_OFF_MS
+            ? new Item("画面タイムアウト", OK, "5分（300000 ms）")
+            : new Item("画面タイムアウト", NEEDS_CHECK, "読み戻し: " + timeout + " ms" + (err != null ? "（" + err + "）" : "")));
 
-    private void applyBrightness() {
-        String err = null;
-        try {
-            dpm.setSystemSetting(admin, Settings.System.SCREEN_BRIGHTNESS_MODE,
-                    String.valueOf(Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL));
-            dpm.setSystemSetting(admin, Settings.System.SCREEN_BRIGHTNESS, String.valueOf(BRIGHTNESS_30PCT));
-        } catch (RuntimeException e) {
-            err = e.getClass().getSimpleName();
-        }
+        // 明るさ自動調整 OFF
+        err = null;
+        try { dpm.setSystemSetting(admin, Settings.System.SCREEN_BRIGHTNESS_MODE, String.valueOf(Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)); }
+        catch (RuntimeException e) { err = e.getClass().getSimpleName(); }
         int mode = Settings.System.getInt(ctx.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE, -1);
+        items.add(mode == Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
+            ? new Item("明るさの自動調整", OK, "OFF")
+            : new Item("明るさの自動調整", NEEDS_CHECK, "読み戻し: " + (mode == 1 ? "ON" : String.valueOf(mode)) + (err != null ? "（" + err + "）" : "")));
+
+        // 明るさ 30% 相当（Android の 0〜255 で 77。Galaxy のスライダー表示は同じ比率にならないことがある）
+        err = null;
+        try { dpm.setSystemSetting(admin, Settings.System.SCREEN_BRIGHTNESS, String.valueOf(BRIGHTNESS_30PCT)); }
+        catch (RuntimeException e) { err = e.getClass().getSimpleName(); }
         int val = Settings.System.getInt(ctx.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, -1);
         int pct = val >= 0 ? Math.round(val * 100f / 255f) : -1;
-        String read = "読み戻し: 設定値 " + val + "/255（約" + pct + "%）、自動調整 " + (mode == 0 ? "OFF" : mode == 1 ? "ON" : "不明");
-        if (mode == Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL && val == BRIGHTNESS_30PCT) {
-            items.add(new Item("明るさ", OK, read + "。Galaxyのスライダー表示は設定値と同じ比率にならない場合があります。"));
-        } else {
-            items.add(new Item("明るさ", NEEDS_CHECK, read + (err != null ? "（" + err + "）" : "")));
-        }
-    }
+        String read = "読み戻し: " + val + "/255（約" + pct + "%）";
+        items.add(val == BRIGHTNESS_30PCT
+            ? new Item("明るさ", OK, read + "。機種のスライダー表示とは一致しないことがあります。")
+            : new Item("明るさ", NEEDS_CHECK, read + (err != null ? "（" + err + "）" : "")));
 
-    private void applyLocation() {
-        String err = null;
-        try {
-            dpm.setLocationEnabled(admin, false);
-        } catch (RuntimeException e) {
-            err = e.getClass().getSimpleName();
-        }
+        // 位置情報 OFF
+        err = null;
+        try { dpm.setLocationEnabled(admin, false); }
+        catch (RuntimeException e) { err = e.getClass().getSimpleName(); }
         LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-        boolean enabled = lm != null && lm.isLocationEnabled();
-        if (!enabled) {
-            items.add(new Item("位置情報", OK, "OFF"));
-        } else {
-            items.add(new Item("位置情報", NEEDS_CHECK, "読み戻し: ON のまま" + (err != null ? "（" + err + "）" : "")));
-        }
-    }
+        boolean loc = lm != null && lm.isLocationEnabled();
+        items.add(!loc ? new Item("位置情報", OK, "OFF")
+                       : new Item("位置情報", NEEDS_CHECK, "読み戻し: ON のまま" + (err != null ? "（" + err + "）" : "")));
 
-    private void applyVolumes() {
-        AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+        // 音量: メディア 0 / アラーム 0 を試行 / 着信・通知 0（バイブ設定は変更しない）
         if (am == null) {
             items.add(new Item("音量", NEEDS_CHECK, "AudioManager を取得できません"));
-            return;
-        }
-        // メディア音量 0
-        setVolume(am, AudioManager.STREAM_MUSIC, "メディア音量", 0, false);
-
-        // 着信・通知音 OFF: 着信ストリーム 0（＝バイブ/サイレント）。
-        // サイレント指定は「サイレントモード（DND）」扱いで通知ポリシーアクセスが要るため、
-        // まずバイブモードにしてからストリームを 0 にする。
-        String err = null;
-        try {
-            am.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
-        } catch (RuntimeException e) {
-            err = e.getClass().getSimpleName();
-        }
-        try {
-            am.setStreamVolume(AudioManager.STREAM_RING, 0, 0);
-        } catch (RuntimeException e) {
-            err = e.getClass().getSimpleName();
-        }
-        try {
-            am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0);
-        } catch (RuntimeException ignored) { }
-        int ring = am.getStreamVolume(AudioManager.STREAM_RING);
-        int notif = am.getStreamVolume(AudioManager.STREAM_NOTIFICATION);
-        int mode = am.getRingerMode();
-        String modeName = mode == AudioManager.RINGER_MODE_SILENT ? "サイレント"
-                : mode == AudioManager.RINGER_MODE_VIBRATE ? "バイブ" : "通常";
-        String read = "読み戻し: 着信 " + ring + "、通知 " + notif + "、モード " + modeName;
-        if (mode != AudioManager.RINGER_MODE_NORMAL && ring == 0) {
-            items.add(new Item("着信・通知音", OK, read));
         } else {
-            items.add(new Item("着信・通知音", NEEDS_CHECK, read + (err != null ? "（" + err + "）" : "") + "。音量パネルから着信音を0にしてください。"));
+            items.add(setZero(am, AudioManager.STREAM_MUSIC, "メディア音量"));
+            items.add(setZero(am, AudioManager.STREAM_ALARM, "アラーム音量"));
+            err = null;
+            try {
+                am.setStreamVolume(AudioManager.STREAM_RING, 0, 0);
+                am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0);
+            } catch (RuntimeException e) { err = e.getClass().getSimpleName(); }
+            int ring = am.getStreamVolume(AudioManager.STREAM_RING);
+            int notif = am.getStreamVolume(AudioManager.STREAM_NOTIFICATION);
+            items.add(ring == 0 && notif == 0
+                ? new Item("着信・通知音", OK, "0")
+                : new Item("着信・通知音", NEEDS_CHECK, "読み戻し: 着信 " + ring + "、通知 " + notif
+                    + (err != null ? "（" + err + "）" : "") + "。音量パネルから着信音を 0 にしてください。"));
         }
 
-        // アラーム音量: 可能なら 0。機種によって最小値が 0 にならない。
-        setVolume(am, AudioManager.STREAM_ALARM, "アラーム音量", 0, true);
+        boolean complete = true;
+        for (Item it : items) if (it.status != OK) complete = false;
+        prefs(ctx).edit().putString("report", encode(items)).putBoolean("complete", complete)
+            .putLong("appliedAt", System.currentTimeMillis()).commit();
     }
 
-    private void setVolume(AudioManager am, int stream, String label, int target, boolean bestEffort) {
+    private static Item setZero(AudioManager am, int stream, String label) {
         String err = null;
         try {
-            am.setStreamVolume(stream, target, 0);
-        } catch (RuntimeException e) {
-            err = e.getClass().getSimpleName();
-        }
+            if (am.isVolumeFixed()) throw new IllegalStateException("VolumeFixed");
+            am.setStreamVolume(stream, 0, 0);
+            if (am.getStreamVolume(stream) != 0) am.adjustStreamVolume(stream, AudioManager.ADJUST_MUTE, 0);
+        } catch (RuntimeException e) { err = e.getClass().getSimpleName(); }
         int v = am.getStreamVolume(stream);
-        int min = Build.VERSION.SDK_INT >= 28 ? am.getStreamMinVolume(stream) : 0;
-        if (v == target) {
-            items.add(new Item(label, OK, String.valueOf(v)));
-        } else {
-            String why = min > target ? "この機種の最小値は " + min + " です。" : "";
-            items.add(new Item(label, NEEDS_CHECK, "読み戻し: " + v + "。" + why + (err != null ? "（" + err + "）" : "")));
-        }
+        if (v == 0) return new Item(label, OK, "0");
+        int min = am.getStreamMinVolume(stream);
+        return new Item(label, NEEDS_CHECK, "読み戻し: " + v + (min > 0 ? "（この機種の最小値は " + min + "）" : "") + (err != null ? "（" + err + "）" : ""));
     }
 
-    // ---- 緊急速報メールの設定画面を開く（開いただけでは OFF 扱いにしない） ----------
+    // ---- 保存用の簡易エンコード ------------------------------------------------
 
-    /** 開けた場合はその方法を返す。開けなければ null。 */
-    public static String openEmergencyAlertSettings(Context c) {
-        PackageManager pm = c.getPackageManager();
-        List<Intent> candidates = new ArrayList<Intent>();
-        // AOSP / Google の Cell Broadcast モジュール
-        candidates.add(new Intent().setClassName("com.google.android.cellbroadcastreceiver",
-                "com.android.cellbroadcastreceiver.CellBroadcastSettings"));
-        candidates.add(new Intent().setClassName("com.android.cellbroadcastreceiver",
-                "com.android.cellbroadcastreceiver.CellBroadcastSettings"));
-        // Samsung（機種・OSで異なるため候補を順に試す）
-        candidates.add(new Intent().setClassName("com.samsung.android.app.telephonyui",
-                "com.samsung.android.app.telephonyui.cellbroadcast.CellBroadcastSettingsActivity"));
-        candidates.add(new Intent().setClassName("com.sec.android.app.cellbroadcastreceiver",
-                "com.sec.android.app.cellbroadcastreceiver.CellBroadcastSettings"));
-        // 「緊急速報」設定を開く汎用アクション（存在すれば）
-        candidates.add(new Intent("android.settings.CELL_BROADCAST_SETTINGS"));
-        candidates.add(new Intent("com.android.cellbroadcastreceiver.CELL_BROADCAST_SETTINGS"));
-        for (Intent i : candidates) {
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            List<ResolveInfo> r = pm.queryIntentActivities(i, 0);
-            if (r != null && !r.isEmpty()) {
-                try {
-                    c.startActivity(i);
-                    return i.getComponent() != null ? i.getComponent().flattenToShortString() : i.getAction();
-                } catch (RuntimeException ignored) { }
-            }
-        }
-        // 最後の手段: 設定アプリのトップ
-        try {
-            c.startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            return "settings-top";
-        } catch (RuntimeException e) {
-            return null;
-        }
-    }
-
-    // ---- 保存用の簡易エンコード ----------------------------------------------
+    public static List<Item> savedReport(Context c) { return decode(prefs(c).getString("report", null)); }
 
     static String encode(List<Item> list) {
         StringBuilder sb = new StringBuilder();
         for (Item it : list) {
-            sb.append(it.name.replace('\u001f', ' ')).append('\u001f')
-              .append(it.status).append('\u001f')
+            sb.append(it.name.replace('\u001f', ' ')).append('\u001f').append(it.status).append('\u001f')
               .append(it.detail.replace('\u001f', ' ').replace('\u001e', ' ')).append('\u001e');
         }
         return sb.toString();
