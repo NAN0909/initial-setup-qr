@@ -33,6 +33,22 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** 現在の NFC 状態と、NFC 設定画面を開くボタン（手動 OFF 用。セットアップ途中には出さない）。 */
+    private void addNfcBlock(LinearLayout content) {
+        content.addView(Ui.body(this, "\n" + SetupApplier.nfcStateText(this)
+            + "\nNFC を OFF にすると、おサイフケータイ・モバイル Suica・タッチ決済などは使えなくなります。"));
+        Button nfc = Ui.button(this, "NFC の設定画面を開く", false);
+        nfc.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                try { startActivity(new Intent(Settings.ACTION_NFC_SETTINGS)); }
+                catch (RuntimeException e) {
+                    try { startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch (RuntimeException ignored) { }
+                }
+            }
+        });
+        content.addView(nfc);
+    }
+
     // ---- B. 1 タップで解除 -------------------------------------------------------
 
     private void showPersonalSwitchPage() {
@@ -43,6 +59,7 @@ public class MainActivity extends Activity {
         content.addView(Ui.eyebrow(this, "初期設定ヘルパー"));
         content.addView(Ui.title(this, "初期設定が完了しました"));
         Ui.addItems(this, content, SetupApplier.savedReport(this));
+        addNfcBlock(content);
         content.addView(Ui.body(this, "\n下のボタンを押すと、このアプリによる端末管理を解除して個人用端末へ切り替えます。"
             + "解除後は各設定を確認してください。もう一度管理端末に戻すには端末の初期化が必要です。"));
 
@@ -87,6 +104,7 @@ public class MainActivity extends Activity {
         content.addView(Ui.title(this, "個人用端末への切り替えが完了しました"));
         content.addView(Ui.body(this, "端末管理の解除を確認しました。\n端末の設定から Google アカウントを追加してください。"
             + "仕事用などの表示が残る場合は手動で再起動してください。\n\nこの初期設定ヘルパーは、不要になったら通常のアプリとしてアンインストールできます。"));
+        addNfcBlock(content);
         Button settings = Ui.button(this, "端末の設定を開く", true);
         settings.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -124,6 +142,7 @@ public class MainActivity extends Activity {
             content.addView(Ui.eyebrow(this, "前回の適用結果"));
             Ui.addItems(this, content, report);
         }
+        addNfcBlock(content);
         if (!SetupApplier.systemSetupComplete(this)) {
             content.addView(Ui.body(this, "\n端末の初期セットアップがまだ完了していません。ホーム画面が表示されたあとにこの画面を開き直すと、「個人用端末へ切り替える」が表示されます。"));
         }

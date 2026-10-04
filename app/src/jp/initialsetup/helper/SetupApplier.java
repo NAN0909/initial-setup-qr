@@ -199,6 +199,9 @@ public final class SetupApplier {
         items.add(!loc ? new Item("位置情報", OK, "OFF")
                        : new Item("位置情報", NEEDS_CHECK, "読み戻し: ON のまま" + (err != null ? "（" + err + "）" : "")));
 
+        // NFC OFF（試行）。公開 API に正式な手段が無いため、失敗しても止めず「要確認」にする。
+        items.add(applyNfc(ctx, dpm, admin));
+
         // 音量: メディア 0 / アラーム 0 を試行 / 着信・通知 0（バイブ設定は変更しない）
         if (am == null) {
             items.add(new Item("音量", NEEDS_CHECK, "AudioManager を取得できません"));
@@ -222,6 +225,52 @@ public final class SetupApplier {
         for (Item it : items) if (it.status != OK) complete = false;
         prefs(ctx).edit().putString("report", encode(items)).putBoolean("complete", complete)
             .putLong("appliedAt", System.currentTimeMillis()).commit();
+    }
+
+    /**
+     * NFC を OFF にする試行。
+     * NfcAdapter.disable() は隠し API で WRITE_SECURE_SETTINGS が必要。Device Owner が自分へ権限を付与できるか、
+     * 隠し API 制限・メーカー制限にかからないかは端末次第なので、読み戻して結果を正直に出す。
+     */
+    private static Item applyNfc(Context ctx, DevicePolicyManager dpm, ComponentName admin) {
+        android.nfc.NfcAdapter nfc = android.nfc.NfcAdapter.getDefaultAdapter(ctx);
+        if (nfc == null) return new Item("NFC", NEEDS_CHECK, "NFC の状態を取得できません（非搭載、または取得に失敗）。");
+        if (!nfc.isEnabled()) return new Item("NFC", OK, "OFF");
+
+        String grant;
+        try {
+            grant = dpm.setPermissionGrantState(admin, ctx.getPackageName(), "android.permission.WRITE_SECURE_SETTINGS",
+                DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED) ? "付与OK" : "付与不可";
+        } catch (RuntimeException e) {
+            grant = "付与で例外 " + e.getClass().getSimpleName();
+        }
+        String call;
+        try {
+            Object r = android.nfc.NfcAdapter.class.getMethod("disable").invoke(nfc);
+            call = "OFF命令 " + r;
+        } catch (Throwable t) {
+            Throwable c = t.getCause() != null ? t.getCause() : t;
+            call = "OFF命令で例外 " + c.getClass().getSimpleName();
+        }
+        // disable は非同期。最大約 1.5 秒だけ状態変化を待つ。
+        for (int i = 0; i < 15 && nfc.isEnabled(); i++) {
+            try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+        }
+        String info = "（" + grant + "、" + call + "）";
+        if (!nfc.isEnabled()) return new Item("NFC", OK, "OFF " + info);
+        return new Item("NFC", NEEDS_CHECK, "読み戻し: ON のまま " + info
+            + "。「NFC の設定画面を開く」から手動で OFF にできます。");
+    }
+
+    /** 現在の NFC 状態（画面表示用）。 */
+    static String nfcStateText(Context c) {
+        try {
+            android.nfc.NfcAdapter nfc = android.nfc.NfcAdapter.getDefaultAdapter(c);
+            if (nfc == null) return "NFC の状態を取得できません";
+            return nfc.isEnabled() ? "現在の NFC: ON" : "現在の NFC: OFF";
+        } catch (RuntimeException e) {
+            return "NFC の状態を取得できません";
+        }
     }
 
     private static Item setZero(AudioManager am, int stream, String label) {

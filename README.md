@@ -114,6 +114,7 @@ APK の URL はログイン不要の HTTPS で、端末の DownloadManager が�
 | タイムゾーン | `setTimeZone`、false なら `AUTO_TIME_ZONE=0` にして再試行 | `TimeZone.getDefault()` |
 | 画面タイムアウト 5 分 | `setSystemSetting(SCREEN_OFF_TIMEOUT, 300000)` | Settings.System |
 | 明るさ 30% / 自動 OFF | `setSystemSetting(SCREEN_BRIGHTNESS_MODE, 0)`, `(SCREEN_BRIGHTNESS, 77)` | Settings.System（値と % を表示） |
+| NFC OFF（試行） | 公開 API に正式な手段なし。WRITE_SECURE_SETTINGS を `setPermissionGrantState` で自己付与 → `NfcAdapter.disable()`（隠し API, リフレクション） | `NfcAdapter.isEnabled()`（最大 1.5 秒待つ） |
 | 位置情報 OFF | `setLocationEnabled(admin, false)` | `LocationManager.isLocationEnabled()` |
 | メディア音量 0 | `AudioManager.setStreamVolume(STREAM_MUSIC, 0)` | `getStreamVolume` |
 | 着信・通知音 0 | `STREAM_RING/NOTIFICATION = 0`（バイブ設定は変更しない） | 音量 |
@@ -126,6 +127,7 @@ APK の URL はログイン不要の HTTPS で、端末の DownloadManager が�
 確認は JobScheduler の非永続 Job（minLatency 5 秒 / deadline 15 秒で再スケジュール、初回から最長 30 分）。表示後は Job を止める。表示時刻は保証しない。
 
 ## 7. 版の履歴
+- 1.2.0 (versionCode 3): NFC を OFF にする試行を追加（`setPermissionGrantState` で WRITE_SECURE_SETTINGS を自分へ付与 → 隠し API `NfcAdapter.disable()` をリフレクションで呼び、`isEnabled` で読み戻す。付与・隠し API 制限・Samsung の制限で通らなければ「要確認」）。最後の画面・状態画面に現在の NFC 状態と「NFC の設定画面を開く」ボタンを追加（セットアップ途中には出さない）。
 - 1.1.0 (versionCode 2): 引き継ぎ資料（参考 v1.9・緊急速報なし）の遷移に合わせて作り直し。compliance 画面の独自ボタンと緊急速報ボタンを除去、完了判定を Job 方式に変更、QR に ADMIN_EXTRAS_BUNDLE を追加、着信・通知はバイブ設定を変えず音量 0 のみ。
 - 1.0.0 (versionCode 1): 初版。URL と APK は残してある（古い QR 用）。
 
@@ -142,6 +144,7 @@ APK の URL はログイン不要の HTTPS で、端末の DownloadManager が�
 - phone 幅（400px）で横スクロールなし。
 
 **未確認（エミュレーター・実機とも未実施）**
+- NFC を OFF にする試行が実際に通るかは未検証（権限の自己付与が許されるか、隠し API 制限・Samsung の制限にかからないかは実機次第）。通らない場合は「要確認」と表示され、手動 OFF の導線がある。
 - このコンテナには Android エミュレーター・実機が無いため、QR 読み取り〜プロビジョニング〜設定適用〜管理解除の実動作は **一切試していない**。
 - Galaxy A25（One UI）での各設定の読み戻し値、Samsung 固有の緊急速報設定画面のコンポーネント名、`clearDeviceOwnerApp` 後の表示挙動は未検証。
 - Android 12+ の `ADMIN_POLICY_COMPLIANCE` 画面が終わった後に `SetupWatchService` からの画面自動表示が Samsung で許可されるかは未検証（通知とアプリ一覧の経路を用意済み）。
